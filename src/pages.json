@@ -1,0 +1,83 @@
+{
+  "pages": [
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationBarTitleText": "未你任务管理"
+      }
+    },
+    {
+      "path": "pages/login/index",
+      "style": {
+        "navigationBarTitleText": "登录"
+      }
+    }
+  ],
+  "subPackages": [
+    {
+      "root": "packageFan",
+      "pages": [
+        {
+          "path": "pages/task-list/index",
+          "style": {
+            "navigationBarTitleText": "任务列表"
+          }
+        },
+        {
+          "path": "pages/task-detail/index",
+          "style": {
+            "navigationBarTitleText": "任务详情"
+          }
+        },
+        {
+          "path": "pages/submit-task/index",
+          "style": {
+            "navigationBarTitleText": "提交任务"
+          }
+        },
+        {
+          "path": "pages/rankings/index",
+          "style": {
+            "navigationBarTitleText": "排行榜"
+          }
+        }
+      ]
+    },
+    {
+      "root": "packageAdmin",
+      "pages": [
+        {
+          "path": "pages/dashboard/index",
+          "style": {
+            "navigationBarTitleText": "管理面板"
+          }
+        },
+        {
+          "path": "pages/task-manage/index",
+          "style": {
+            "navigationBarTitleText": "任务管理"
+          }
+        },
+        {
+          "path": "pages/invites/index",
+          "style": {
+            "navigationBarTitleText": "邀请码管理"
+          }
+        },
+        {
+          "path": "pages/review/index",
+          "style": {
+            "navigationBarTitleText": "审核任务"
+          }
+        }
+      ]
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "未你任务",
+    "navigationBarBackgroundColor": "#F8F8F8",
+    "backgroundColor": "#F8F8F8"
+  },
+  "uniIdRouter": {}
+} 
