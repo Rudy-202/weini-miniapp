@@ -74,10 +74,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onLoad, reactive } from '@dcloudio/uni-app';
+import { ref, reactive } from 'vue';
+import { onLoad } from '@dcloudio/uni-app';
 import { useUserStore } from '../../store/user';
 import { adminLogin, verifyInviteCode } from '../../api/user';
-import { switchTab, navigateBack } from '../../utils/navigator';
+import { navigateBack } from '../../utils/navigator';
 
 // 获取用户状态
 const userStore = useUserStore();
@@ -133,11 +134,11 @@ const switchLoginType = () => {
 // 重定向到首页
 const redirectToHome = () => {
   if (userStore.isAdmin) {
-    switchTab({
+    uni.redirectTo({
       url: '/packageAdmin/pages/dashboard/index'
     });
   } else {
-    switchTab({
+    uni.redirectTo({
       url: '/packageFan/pages/task-list/index'
     });
   }
@@ -220,7 +221,7 @@ const handleFanLogin = async () => {
     
     // 跳转到粉丝任务列表
     setTimeout(() => {
-      switchTab({
+      uni.redirectTo({
         url: '/packageFan/pages/task-list/index'
       });
     }, 1500);
@@ -258,7 +259,7 @@ const handleAdminLogin = async () => {
     
     // 跳转到管理员控制台
     setTimeout(() => {
-      switchTab({
+      uni.redirectTo({
         url: '/packageAdmin/pages/dashboard/index'
       });
     }, 1500);
@@ -290,13 +291,13 @@ const handleAdminLogin = async () => {
 .login-title {
   font-size: 48rpx;
   font-weight: bold;
-  color: var(--primary-color);
+  color: #4a6bff;
   margin-bottom: 20rpx;
 }
 
 .login-subtitle {
   font-size: 32rpx;
-  color: var(--text-color-light);
+  color: #666;
 }
 
 .login-form {
@@ -310,7 +311,7 @@ const handleAdminLogin = async () => {
 .form-label {
   font-size: 28rpx;
   margin-bottom: 10rpx;
-  color: var(--text-color);
+  color: #333;
 }
 
 .form-input {
@@ -321,9 +322,10 @@ const handleAdminLogin = async () => {
   padding: 0 30rpx;
   border: 2rpx solid transparent;
   transition: all 0.3s;
+  box-sizing: border-box;
   
   &:focus {
-    border-color: var(--primary-color);
+    border-color: #4a6bff;
     box-shadow: 0 0 10rpx rgba(0, 0, 0, 0.05);
   }
 }
@@ -345,12 +347,14 @@ const handleAdminLogin = async () => {
   line-height: 90rpx;
   border-radius: 45rpx;
   font-size: 32rpx;
-  background: var(--primary-color);
+  background: #4a6bff;
   color: #fff;
   font-weight: bold;
   margin-top: 60rpx;
   transition: all 0.3s;
   box-shadow: 0 8rpx 20rpx rgba(0, 0, 0, 0.1);
+  z-index: 10;
+  position: relative;
   
   &:active {
     transform: translateY(3rpx);
@@ -367,8 +371,10 @@ const handleAdminLogin = async () => {
   text-align: center;
   margin-top: 60rpx;
   font-size: 28rpx;
-  color: var(--primary-color);
+  color: #4a6bff;
   text-decoration: underline;
+  z-index: 10;
+  position: relative;
 }
 
 @keyframes fade-in {

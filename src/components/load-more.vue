@@ -1,30 +1,31 @@
 <!-- components/load-more.vue -->
 <template>
   <view class="load-more">
-    <!-- 加载中状态 -->
-    <view v-if="status === 'loading'" class="load-more__loading">
-      <view class="load-more__spinner"></view>
-      <text class="load-more__text">{{ loadingText }}</text>
-    </view>
+    <template v-if="status === 'loading'">
+      <view class="load-more__loading">
+        <view class="load-more__spinner"></view>
+        <text class="load-more__text">{{ loadingText }}</text>
+      </view>
+    </template>
     
-    <!-- 加载失败状态 -->
-    <view v-else-if="status === 'fail'" class="load-more__fail">
-      <text class="load-more__text">{{ failText }}</text>
-      <text class="load-more__retry" @tap="onRetry">重试</text>
-    </view>
+    <template v-else-if="status === 'fail'">
+      <view class="load-more__fail">
+        <text class="load-more__text">{{ failText }}</text>
+        <text class="load-more__retry" @tap="onRetry">重试</text>
+      </view>
+    </template>
     
-    <!-- 没有更多数据状态 -->
-    <view v-else-if="status === 'nomore'" class="load-more__nomore">
-      <text class="load-more__text">{{ nomoreText }}</text>
-    </view>
+    <template v-else-if="status === 'nomore'">
+      <view class="load-more__nomore">
+        <text class="load-more__text">{{ nomoreText }}</text>
+      </view>
+    </template>
     
-    <!-- 点击加载更多状态 -->
-    <view v-else-if="status === 'more'" class="load-more__more">
-      <text class="load-more__text" @tap="onLoadMore">{{ moreText }}</text>
-    </view>
-    
-    <!-- 默认状态，什么都不显示 -->
-    <view v-else></view>
+    <template v-else-if="status === 'more'">
+      <view class="load-more__more">
+        <text class="load-more__text" @tap="onLoadMore">{{ moreText }}</text>
+      </view>
+    </template>
   </view>
 </template>
 

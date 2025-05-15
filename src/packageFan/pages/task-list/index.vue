@@ -2,7 +2,7 @@
   <view class="task-list-container">
     <custom-navbar title="任务列表" />
     
-    <!-- 搜索区域 -->
+    <!-- 搜索区域 (暂时移除sticky) -->
     <view class="search-bar">
       <view class="search-input-wrap">
         <uni-icons type="search" size="18" color="#999"></uni-icons>
@@ -17,8 +17,8 @@
       </view>
     </view>
     
-    <!-- 筛选标签 -->
-    <scroll-view scroll-x class="filter-tags" show-scrollbar="false">
+    <!-- 筛选标签 (暂时移除sticky) -->
+    <scroll-view scroll-x class="filter-tags" show-scrollbar="false" enable-flex>
       <view 
         class="tag-item" 
         :class="{ active: activeStatus === status.value }"
@@ -33,32 +33,58 @@
     <!-- 任务列表 -->
     <scroll-view
       scroll-y
-      class="task-list"
+      class="task-list" 
       refresher-enabled
       :refresher-triggered="isRefreshing"
       @refresherrefresh="onRefresh"
       @scrolltolower="loadMore"
+      enable-flex
+      style=""
     >
+      <!-- <view style="background-color: orange; color: white; padding: 10px; font-weight: bold;">
+        STATIC TEST ELEMENT INSIDE SCROLL-VIEW
+      </view> -->
+
       <template v-if="tasks.length > 0">
-        <view class="task-item-wrap" v-for="task in tasks" :key="task.id">
-          <task-card 
-            :task="task"
-            @tap="goToDetail(task.id)"
-          />
+        <view class="task-item-wrap" v-for="(task, index) in tasks" :key="task.id">
+          <TaskCard :task="task" @click="goToDetail(task.id)" />
         </view>
         <load-more :status="loadMoreStatus" />
       </template>
-      <view v-else-if="!isLoading" class="empty-tip">
-        <image class="empty-icon" src="/static/images/empty.png" mode="aspectFit"></image>
-        <text class="empty-text">暂无任务</text>
+      <view v-else-if="!isLoading && tasks.length === 0" class="empty-tip" style="background-color: #eee;">
+        <uni-icons type="info" size="50" color="#cccccc"></uni-icons>
+        <text class="empty-text">暂无任务 (isLoading is false, tasks.length is 0)</text>
       </view>
+      <view v-else-if="isLoading" class="empty-tip" style="background-color: #ddd;">
+        <text class="empty-text">正在加载中... (isLoading is true)</text>
+      </view>
+
     </scroll-view>
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, reactive } from 'vue';
-import { getTasks, TaskItem } from '@/api/task';
+import TaskCard from '../../../components/task-card.vue';
+import { getTasks, TaskItem } from '../../../api/task';
+
+// 定义一个更符合API实际返回和TaskCard期望的类型
+interface DisplayableTask {
+  id: string;
+  title: string;
+  description: string;
+  points: number;
+  status: string;
+  deadline?: string; // API 返回 due_date
+  isFocus?: boolean; // API 返回 is_focus_task
+  // 可能还需要TaskItem中的其他字段，如果TaskCard需要的话
+  startTime?: string;
+  endTime?: string;
+  images?: string[];
+  tags?: string[];
+  createdAt?: string;
+  updatedAt?: string;
+}
 
 // 状态选项
 const statusOptions = [
@@ -69,46 +95,90 @@ const statusOptions = [
 ];
 
 // 响应式数据
-const tasks = ref<TaskItem[]>([]);
+const tasks = ref<DisplayableTask[]>([]);
 const keyword = ref('');
 const activeStatus = ref('');
 const page = ref(1);
 const pageSize = ref(10);
 const total = ref(0);
-const isLoading = ref(false);
+const isLoading = ref(true);
 const isRefreshing = ref(false);
 const loadMoreStatus = ref<'more'|'loading'|'noMore'>('more');
 
 // 获取任务列表
 const fetchTasks = async (refresh = false) => {
+  console.log('fetchTasks - refresh:', refresh);
   if (refresh) {
     page.value = 1;
     tasks.value = [];
+    console.log('fetchTasks - tasks cleared for refresh');
   }
   
+  isLoading.value = true;
+  console.log('fetchTasks - isLoading set to true');
+
   try {
-    isLoading.value = true;
     const params = {
       page: page.value,
       pageSize: pageSize.value,
       status: activeStatus.value,
-      keyword: keyword.value
+      keyword: keyword.value,
+      orderBy: 'created_at_desc'
     };
     
-    const res = await getTasks(params);
+    console.log('fetchTasks - 请求参数:', JSON.stringify(params));
     
-    if (refresh) {
-      tasks.value = res.items;
+    const res: any = await getTasks(params); 
+    console.log('fetchTasks - 原始API响应:', JSON.stringify(res));
+    
+    let rawItems: any[] = []; 
+    let totalCount = 0;
+
+    if (res && typeof res === 'object' && res.data && Array.isArray(res.data.list)) {
+      rawItems = res.data.list;
+      totalCount = res.data.total || rawItems.length;
+      console.log('fetchTasks - 成功提取原始rawItems:', JSON.stringify(rawItems));
+      console.log('fetchTasks - 任务总数:', totalCount);
     } else {
-      tasks.value = [...tasks.value, ...res.items];
+      console.error('fetchTasks - API响应data.list不是数组或不存在:', res.data);
+      rawItems = [];
+      totalCount = 0;
     }
     
-    total.value = res.total;
+    const mappedItems: DisplayableTask[] = rawItems.map(item => ({
+      id: item.id,
+      title: item.title,
+      description: item.description,
+      points: item.points,
+      status: item.status,
+      deadline: item.due_date,
+      isFocus: item.is_focus_task,
+    }));
+    console.log('fetchTasks - 转换后的mappedItems:', JSON.stringify(mappedItems));
     
-    // 更新加载更多状态
-    loadMoreStatus.value = tasks.value.length >= total.value ? 'noMore' : 'more';
+    if (refresh) {
+      tasks.value = mappedItems;
+    } else {
+      tasks.value = [...tasks.value, ...mappedItems];
+    }
+    console.log('fetchTasks - 更新后的tasks.value (length):', tasks.value.length);
+    console.log('fetchTasks - 更新后的tasks.value (content):', JSON.stringify(tasks.value));
+
+    total.value = totalCount;
+    if (tasks.value.length >= total.value) {
+      loadMoreStatus.value = 'noMore';
+    } else if (rawItems.length === 0 && page.value > 1) {
+      loadMoreStatus.value = 'noMore';
+    } else {
+      loadMoreStatus.value = 'more';
+    }
+    console.log('fetchTasks - loadMoreStatus:', loadMoreStatus.value);
+
   } catch (error) {
-    console.error('获取任务列表失败', error);
+    console.error('fetchTasks - 获取任务列表失败:', error);
+    tasks.value = [];
+    total.value = 0;
+    loadMoreStatus.value = 'more';
     uni.showToast({
       title: '加载任务失败',
       icon: 'none'
@@ -116,6 +186,7 @@ const fetchTasks = async (refresh = false) => {
   } finally {
     isLoading.value = false;
     isRefreshing.value = false;
+    console.log('fetchTasks - finally block, isLoading:', isLoading.value, 'isRefreshing:', isRefreshing.value);
   }
 };
 
@@ -134,16 +205,19 @@ const changeStatus = (status: string) => {
 
 // 下拉刷新
 const onRefresh = () => {
+  if(isRefreshing.value) return;
+  console.log('onRefresh triggered');
   isRefreshing.value = true;
   fetchTasks(true);
 };
 
 // 加载更多
 const loadMore = () => {
-  if (loadMoreStatus.value === 'noMore' || isLoading.value) return;
+  console.log('loadMore triggered - status:', loadMoreStatus.value, 'isLoading:', isLoading.value);
+  if (loadMoreStatus.value === 'noMore' || isLoading.value || isRefreshing.value) return;
   
-  loadMoreStatus.value = 'loading';
   page.value++;
+  console.log('loadMore - page incremented to:', page.value);
   fetchTasks();
 };
 
@@ -155,7 +229,8 @@ const goToDetail = (id: string) => {
 };
 
 onMounted(() => {
-  fetchTasks();
+  console.log('onMounted - 组件已挂载, 初始调用 fetchTasks');
+  fetchTasks(true);
 });
 </script>
 
@@ -165,11 +240,15 @@ onMounted(() => {
   flex-direction: column;
   height: 100vh;
   background-color: #f5f5f5;
+  position: relative; 
 }
 
 .search-bar {
   padding: 10px 15px;
   background-color: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 10;
   
   .search-input-wrap {
     display: flex;
@@ -193,6 +272,9 @@ onMounted(() => {
   padding: 10px 15px;
   background-color: #fff;
   white-space: nowrap;
+  position: sticky;
+  top: 56px;
+  z-index: 10;
   
   .tag-item {
     display: inline-block;
@@ -212,10 +294,11 @@ onMounted(() => {
 }
 
 .task-list {
-  flex: 1;
+  flex: 1; 
+  overflow-y: auto; 
   
   .task-item-wrap {
-    padding: 10px 15px;
+    padding: 0; 
   }
 }
 
@@ -224,17 +307,13 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding-top: 100px;
-  
-  .empty-icon {
-    width: 100px;
-    height: 100px;
-    margin-bottom: 10px;
-  }
+  padding-top: 50px;
+  text-align: center;
   
   .empty-text {
     font-size: 14px;
-    color: #999;
+    color: #555;
+    margin-top: 10px;
   }
 }
 </style> 

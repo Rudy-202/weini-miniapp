@@ -64,7 +64,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { getTaskDetail, TaskItem } from '@/api/task';
+import { getTaskDetail, TaskItem } from '../../../api/task';
 import { onLoad } from '@dcloudio/uni-app';
 
 const task = ref<TaskItem | null>(null);
@@ -144,19 +144,52 @@ const getActionButtonText = computed(() => {
 
 // 获取任务详情
 const fetchTaskDetail = async () => {
-  if (!taskId.value) return;
+  console.log('[task-detail] fetchTaskDetail called with taskId:', taskId.value);
+  if (!taskId.value) {
+    console.log('[task-detail] taskId is empty, aborting fetchTaskDetail.');
+    isLoading.value = false;
+    return;
+  }
   
+  isLoading.value = true;
   try {
-    isLoading.value = true;
-    task.value = await getTaskDetail(taskId.value);
+    // getTaskDetail is typed to return Promise<TaskItem> via request<TaskItem>
+    // However, the 'request' function itself might wrap this in a ResponseData structure.
+    // Let's assume 'responseFromApi' is the direct result of the HTTP request, potentially with a wrapper.
+    const responseFromApi: any = await getTaskDetail(taskId.value);
+    console.log('[task-detail] Raw response from getTaskDetail:', JSON.stringify(responseFromApi));
+
+    // Scenario 1: responseFromApi is { code: ..., data: TaskItem, ... }
+    if (responseFromApi && typeof responseFromApi === 'object' && 'data' in responseFromApi && responseFromApi.data) {
+      // Check if responseFromApi.data looks like a TaskItem (e.g., has an 'id')
+      if (typeof responseFromApi.data === 'object' && 'id' in responseFromApi.data) {
+        task.value = responseFromApi.data as TaskItem; 
+        console.log('[task-detail] Assigned task.value from response.data');
+      } else {
+        console.warn('[task-detail] response.data exists but does not look like a TaskItem. Content:', JSON.stringify(responseFromApi.data));
+        task.value = null;
+      }
+    // Scenario 2: responseFromApi is directly TaskItem 
+    } else if (responseFromApi && typeof responseFromApi === 'object' && 'id' in responseFromApi) {
+      console.log('[task-detail] Response seems to be a direct TaskItem.');
+      task.value = responseFromApi as TaskItem;
+    } else {
+      console.error('[task-detail] Unexpected response structure or response is null/undefined.');
+      task.value = null;
+    }
+    
+    console.log('[task-detail] Final task.value set to:', JSON.stringify(task.value));
+
   } catch (error) {
-    console.error('获取任务详情失败', error);
+    console.error('[task-detail] 获取任务详情失败:', error);
+    task.value = null;
     uni.showToast({
       title: '加载任务失败',
       icon: 'none'
     });
   } finally {
     isLoading.value = false;
+    console.log('[task-detail] fetchTaskDetail finished. isLoading:', isLoading.value);
   }
 };
 
@@ -178,9 +211,14 @@ const goToSubmit = () => {
 };
 
 onLoad((options) => {
-  if (options.id) {
+  console.log('[task-detail] onLoad options:', JSON.stringify(options));
+  if (options && options.id) {
     taskId.value = options.id;
+    console.log('[task-detail] taskId set to:', taskId.value);
     fetchTaskDetail();
+  } else {
+    console.log('[task-detail] No id found in onLoad options.');
+    isLoading.value = false;
   }
 });
 </script>

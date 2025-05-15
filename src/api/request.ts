@@ -13,10 +13,10 @@ interface ResponseData<T = any> {
 
 const ENV = {
   development: {
-    baseURL: 'https://dev-api.weini-system.com/v1'
+    baseURL: 'http://localhost:5000/v1'
   },
   production: {
-    baseURL: 'https://api.weini-system.com/v1'
+    baseURL: 'http://localhost:5000/v1'
   }
 }
 

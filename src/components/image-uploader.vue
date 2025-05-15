@@ -2,26 +2,29 @@
 <template>
   <view class="uploader">
     <view class="uploader__list">
-      <view 
-        class="uploader__item" 
-        v-for="(item, index) in fileList" 
-        :key="index"
-      >
-        <image 
-          class="uploader__image" 
-          :src="item.url" 
-          mode="aspectFill"
-          @tap="previewImage(index)"
-        ></image>
-        <view 
-          class="uploader__delete" 
-          @tap.stop="removeImage(index)"
-        >×</view>
-      </view>
+      <template v-for="(item, index) in fileList" :key="index">
+        <view class="uploader__item">
+          <image 
+            class="uploader__image" 
+            :src="item.url" 
+            mode="aspectFill"
+            @tap="previewImage(index)"
+            :lazy-load="true"
+          ></image>
+          <view 
+            class="uploader__delete" 
+            @tap.stop="removeImage(index)"
+          >×</view>
+          <view v-if="item.status === 'uploading'" class="uploader__loading">
+            <view class="uploader__spinner"></view>
+          </view>
+          <view v-if="item.status === 'error'" class="uploader__error">!</view>
+        </view>
+      </template>
       
       <view 
+        v-if="showAddButton"
         class="uploader__add" 
-        v-if="fileList.length < maxCount"
         @tap="chooseImage"
       >
         <text class="uploader__icon">+</text>
@@ -32,7 +35,7 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { uploadImage } from '@/api/upload';
 
 const props = defineProps({
@@ -50,12 +53,17 @@ const emit = defineEmits(['update:value', 'change']);
 
 const fileList = ref(props.value.map(url => ({ url, status: 'done' })));
 
+// 计算属性，控制是否显示上传按钮
+const showAddButton = computed(() => fileList.value.length < props.maxCount);
+
 // 监听value变化
 watch(() => props.value, (newValue) => {
-  fileList.value = newValue.map(url => ({ url, status: 'done' }));
-});
+  if (JSON.stringify(newValue) !== JSON.stringify(fileList.value.filter(f => f.status === 'done').map(f => f.url))) {
+    fileList.value = newValue.map(url => ({ url, status: 'done' }));
+  }
+}, { deep: true });
 
-// 选择图片
+// 选择图片优化，使用Promise.all并行上传
 const chooseImage = async () => {
   try {
     const res = await uni.chooseImage({
@@ -70,13 +78,13 @@ const chooseImage = async () => {
       status: 'uploading'
     }));
     
+    const startIndex = fileList.value.length;
     fileList.value = [...fileList.value, ...newFiles];
     
-    // 上传图片
-    for (let i = 0; i < newFiles.length; i++) {
-      const fileIndex = fileList.value.length - newFiles.length + i;
-      await handleUpload(newFiles[i], fileIndex);
-    }
+    // 并行上传图片
+    await Promise.all(newFiles.map((file, i) => 
+      handleUpload(file, startIndex + i)
+    ));
   } catch (e) {
     console.error('选择图片失败', e);
   }
@@ -85,22 +93,29 @@ const chooseImage = async () => {
 // 上传图片
 const handleUpload = async (file, index) => {
   try {
+    // 图片压缩（如果有需要）
+    // const compressedUrl = await compressImage(file.url);
+    
     const result = await uploadImage(file.url);
     
     // 更新状态
-    fileList.value[index] = {
-      url: result.url,
-      status: 'done'
-    };
-    
-    emitChange();
+    if (fileList.value[index]) {
+      fileList.value[index] = {
+        url: result.url,
+        status: 'done'
+      };
+      
+      emitChange();
+    }
   } catch (e) {
     // 上传失败
-    fileList.value[index].status = 'error';
-    uni.showToast({
-      title: '上传失败',
-      icon: 'none'
-    });
+    if (fileList.value[index]) {
+      fileList.value[index].status = 'error';
+      uni.showToast({
+        title: '上传失败',
+        icon: 'none'
+      });
+    }
     console.error('上传失败', e);
   }
 };
@@ -164,6 +179,45 @@ const emitChange = () => {
     color: #fff;
     border-radius: 50%;
     font-size: 32rpx;
+    z-index: 10;
+  }
+  
+  &__loading {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.3);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 8rpx;
+    z-index: 5;
+  }
+  
+  &__error {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 40rpx;
+    height: 40rpx;
+    line-height: 40rpx;
+    text-align: center;
+    background-color: #ff4d4f;
+    color: #fff;
+    border-radius: 50%;
+    font-size: 24rpx;
+    z-index: 5;
+  }
+  
+  &__spinner {
+    width: 40rpx;
+    height: 40rpx;
+    border: 4rpx solid #f3f3f3;
+    border-top: 4rpx solid #1890ff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
   }
   
   &__add {
@@ -185,6 +239,11 @@ const emitChange = () => {
   &__text {
     font-size: 24rpx;
     color: #999;
+  }
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
   }
 }
 </style> 

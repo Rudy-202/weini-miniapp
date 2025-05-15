@@ -77,7 +77,7 @@ const contentStyle = computed(() => {
 const handleBack = () => {
   uni.navigateBack({
     fail: () => {
-      uni.switchTab({
+      uni.redirectTo({
         url: '/pages/index/index'
       });
     }

@@ -94,7 +94,7 @@ export function reLaunch(options: NavigateOptions): Promise<any> {
  */
 export function switchTab(options: { url: string }): Promise<any> {
   return new Promise((resolve, reject) => {
-    uni.switchTab({
+    uni.redirectTo({
       url: options.url,
       success: (res) => {
         resolve(res);
