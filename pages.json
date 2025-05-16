@@ -30,7 +30,7 @@
           }
         },
         {
-          "path": "pages/submit-task/index",
+          "path": "pages/task-submit/index",
           "style": {
             "navigationBarTitleText": "提交任务"
           }
@@ -49,7 +49,7 @@
         {
           "path": "pages/dashboard/index",
           "style": {
-            "navigationBarTitleText": "管理面板"
+            "navigationBarTitleText": "管理中心"
           }
         },
         {
@@ -59,9 +59,15 @@
           }
         },
         {
-          "path": "pages/task-create/index",
+          "path": "pages/task-history/index",
           "style": {
-            "navigationBarTitleText": "创建任务"
+            "navigationBarTitleText": "历史任务"
+          }
+        },
+        {
+          "path": "pages/task/create",
+          "style": {
+            "navigationBarTitleText": "创建新任务"
           }
         },
         {
@@ -79,7 +85,7 @@
         {
           "path": "pages/review/index",
           "style": {
-            "navigationBarTitleText": "审核任务"
+            "navigationBarTitleText": "审核提交"
           }
         },
         {

@@ -19,7 +19,8 @@ onLaunch(() => {
   // 检查登录状态
   checkLoginStatus();
   
-  // 预加载分包
+  // TODO: DEBUG - 应用启动时偶现 vendor.js TypeError: e.index.preloadSubpackages is not a function 报错，导致预加载失败。
+  // 需要后续排查 uni.preloadSubpackages API 的可用性或兼容性问题。
   preloadSubpackages();
   
   // 初始化应用
@@ -89,8 +90,8 @@ function preloadSubpackages() {
   if (userStore.isLoggedIn) {
     if (userStore.isAdmin) {
       // 预加载管理员分包
-      uni.preloadSubpackages({
-        packages: [{ name: 'packageAdmin' }],
+      uni.preDownloadSubpackage({
+        packages: ['packageAdmin'],
         success: () => {
           console.log('管理员分包预加载成功');
         },
@@ -100,8 +101,8 @@ function preloadSubpackages() {
       });
     } else {
       // 预加载粉丝分包
-      uni.preloadSubpackages({
-        packages: [{ name: 'packageFan' }],
+      uni.preDownloadSubpackage({
+        packages: ['packageFan'],
         success: () => {
           console.log('粉丝分包预加载成功');
         },
@@ -191,6 +192,7 @@ function initCacheSystem() {
   };
   
   // 挂载到全局
+  // @ts-ignore
   uni.cacheManager = cacheManager;
 }
 

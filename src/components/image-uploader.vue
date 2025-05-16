@@ -35,8 +35,8 @@
 </template>
 
 <script setup>
-import { ref, watch, computed } from 'vue';
-import { uploadImage } from '@/api/upload';
+import { ref, watch, computed, onMounted } from 'vue';
+import { uploadImage } from '../api/upload';
 
 const props = defineProps({
   value: {
@@ -52,14 +52,27 @@ const props = defineProps({
 const emit = defineEmits(['update:value', 'change']);
 
 const fileList = ref(props.value.map(url => ({ url, status: 'done' })));
+console.log('[image-uploader] Initial props.value:', JSON.stringify(props.value));
+console.log('[image-uploader] Initial props.maxCount:', props.maxCount);
+console.log('[image-uploader] Initial fileList.value (from props.value):', JSON.stringify(fileList.value));
 
 // 计算属性，控制是否显示上传按钮
-const showAddButton = computed(() => fileList.value.length < props.maxCount);
+const showAddButton = computed(() => {
+  const shouldShow = fileList.value.length < props.maxCount;
+  console.log(`[image-uploader] showAddButton computed: fileList.length (${fileList.value.length}) < props.maxCount (${props.maxCount}) = ${shouldShow}`);
+  return shouldShow;
+});
 
-// 监听value变化
+// 监听外部v-model (props.value) 的变化
 watch(() => props.value, (newValue) => {
-  if (JSON.stringify(newValue) !== JSON.stringify(fileList.value.filter(f => f.status === 'done').map(f => f.url))) {
+  console.log('[image-uploader] props.value watcher triggered. newValue:', JSON.stringify(newValue));
+  // Check if internal fileList (only done items) is already in sync
+  const currentDoneUrls = fileList.value.filter(f => f.status === 'done').map(f => f.url);
+  if (JSON.stringify(newValue) !== JSON.stringify(currentDoneUrls)) {
+    console.log('[image-uploader] props.value changed and is different from current done URLs. Resetting fileList.');
     fileList.value = newValue.map(url => ({ url, status: 'done' }));
+  } else {
+    console.log('[image-uploader] props.value changed but seems in sync with done URLs. No change to fileList.');
   }
 }, { deep: true });
 
@@ -144,6 +157,12 @@ const emitChange = () => {
   emit('update:value', urls);
   emit('change', urls);
 };
+
+// Example of using onMounted for a log that runs once when component is ready
+onMounted(() => {
+  console.log('[image-uploader] Component mounted. Initial fileList length:', fileList.value.length, 'maxCount:', props.maxCount);
+  // This will also trigger showAddButton computation log
+});
 </script>
 
 <style lang="scss" scoped>

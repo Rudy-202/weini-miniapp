@@ -72,8 +72,10 @@ const isLoading = ref(true);
 const taskId = ref('');
 
 // 格式化时间
-const formatTime = (timeStr: string) => {
+const formatTime = (timeStr?: string) => {
+  if (!timeStr) return 'N/A';
   const date = new Date(timeStr);
+  if (isNaN(date.getTime())) return '日期无效';
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 };
 
@@ -81,12 +83,16 @@ const formatTime = (timeStr: string) => {
 const getStatusClass = computed(() => {
   if (!task.value) return '';
   
-  const now = new Date().getTime();
-  const startTime = new Date(task.value.startTime).getTime();
-  const endTime = new Date(task.value.endTime).getTime();
-  
-  if (now < startTime) return 'status-upcoming';
-  if (now > endTime) return 'status-expired';
+  if (task.value.due_date) {
+    const now = new Date().getTime();
+    const dueDate = new Date(task.value.due_date).getTime();
+    if (now > dueDate && task.value.status !== 'completed') return 'status-expired'; 
+  }
+  if (task.value.startTime) {
+      const now = new Date().getTime();
+      const startTime = new Date(task.value.startTime).getTime();
+      if (now < startTime) return 'status-upcoming';
+  }
   
   switch (task.value.status) {
     case 'active': return 'status-active';
@@ -98,13 +104,17 @@ const getStatusClass = computed(() => {
 // 获取任务状态文本
 const getStatusText = computed(() => {
   if (!task.value) return '';
-  
-  const now = new Date().getTime();
-  const startTime = new Date(task.value.startTime).getTime();
-  const endTime = new Date(task.value.endTime).getTime();
-  
-  if (now < startTime) return '未开始';
-  if (now > endTime) return '已结束';
+
+  if (task.value.due_date) {
+    const now = new Date().getTime();
+    const dueDate = new Date(task.value.due_date).getTime();
+    if (now > dueDate && task.value.status !== 'completed') return '已过期';
+  }
+  if (task.value.startTime) {
+      const now = new Date().getTime();
+      const startTime = new Date(task.value.startTime).getTime();
+      if (now < startTime) return '未开始';
+  }
   
   switch (task.value.status) {
     case 'active': return '进行中';
@@ -115,31 +125,44 @@ const getStatusText = computed(() => {
 
 // 判断是否可以提交任务
 const canSubmit = computed(() => {
-  if (!task.value) return false;
+  if (!task.value || task.value.status !== 'active') return false;
   
   const now = new Date().getTime();
-  const startTime = new Date(task.value.startTime).getTime();
-  const endTime = new Date(task.value.endTime).getTime();
   
-  return now >= startTime && now <= endTime && task.value.status === 'active';
+  if (task.value.startTime) {
+    const startTime = new Date(task.value.startTime).getTime();
+    if (isNaN(startTime) || now < startTime) return false;
+  }
+  
+  if (task.value.due_date) {
+    const dueDate = new Date(task.value.due_date).getTime();
+    if (isNaN(dueDate) || now > dueDate) return false;
+  }
+  
+  return true;
 });
 
 // 获取操作按钮文本
 const getActionButtonText = computed(() => {
   if (!task.value) return '提交任务';
-  
-  const now = new Date().getTime();
-  const startTime = new Date(task.value.startTime).getTime();
-  const endTime = new Date(task.value.endTime).getTime();
-  
-  if (now < startTime) return '未开始';
-  if (now > endTime) return '已结束';
-  
-  switch (task.value.status) {
-    case 'active': return '提交任务';
-    case 'completed': return '已完成';
-    default: return '未知状态';
+
+  if (task.value.status === 'completed') return '已完成';
+
+  if (task.value.due_date) {
+    const now = new Date().getTime();
+    const dueDate = new Date(task.value.due_date).getTime();
+    if (!isNaN(dueDate) && now > dueDate) return '已过期';
   }
+  
+  if (task.value.startTime) {
+      const now = new Date().getTime();
+      const startTime = new Date(task.value.startTime).getTime();
+      if (!isNaN(startTime) && now < startTime) return '未开始';
+  }
+
+  if (task.value.status === 'active') return '提交任务';
+  
+  return '状态未知';
 });
 
 // 获取任务详情
@@ -179,6 +202,14 @@ const fetchTaskDetail = async () => {
     }
     
     console.log('[task-detail] Final task.value set to:', JSON.stringify(task.value));
+    // 新增日志，用于诊断 canSubmit 条件
+    if (task.value) {
+      console.log('[task-detail] Task details for canSubmit check:', 
+                  'Status:', task.value.status, 
+                  'StartTime:', task.value.startTime, 
+                  'EndTime:', task.value.endTime, 
+                  'Now:', new Date().toISOString());
+    }
 
   } catch (error) {
     console.error('[task-detail] 获取任务详情失败:', error);
@@ -203,10 +234,40 @@ const previewImage = (current: string, urls: string[]) => {
 
 // 跳转到提交页面
 const goToSubmit = () => {
-  if (!canSubmit.value) return;
+  console.log('[task-detail] goToSubmit function called.'); // 新增日志
+  if (!canSubmit.value || !task.value?.id) { // 确保 task.value 和 task.value.id 存在
+    console.log('[task-detail] goToSubmit: canSubmit is false or taskId is missing.');
+    let reason = '任务当前不可提交';
+    if (!task.value) {
+      reason = '任务数据未加载';
+    } else if (!task.value.id) {
+      reason = '任务ID缺失';
+    }
+    else {
+      const now = new Date().getTime();
+      // 注意：TaskItem接口中定义的是 startTime 和 due_date，确保使用正确的字段
+      const startTimeMs = task.value.startTime ? new Date(task.value.startTime).getTime() : 0;
+      const endTimeMs = task.value.due_date ? new Date(task.value.due_date).getTime() : Infinity; // 使用 due_date
+
+      if (task.value.status !== 'active') {
+        reason = `任务状态为 [${getStatusText.value}], 不是可提交状态`;
+      } else if (task.value.startTime && now < startTimeMs) {
+        reason = '任务尚未开始';
+      } else if (task.value.due_date && now > endTimeMs) {
+        reason = '任务已截止';
+      }
+    }
+    uni.showToast({
+      title: reason,
+      icon: 'none'
+    });
+    return;
+  }
   
+  // 导航到任务提交页面，并传递任务ID
+  console.log(`[task-detail] Navigating to submit page with taskId: ${task.value.id}`);
   uni.navigateTo({
-    url: `/packageFan/pages/submit-task/index?id=${taskId.value}&title=${encodeURIComponent(task.value?.title || '')}`
+    url: `/packageFan/pages/task-submit/index?taskId=${task.value.id}`
   });
 };
 
